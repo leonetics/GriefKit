@@ -42,7 +42,7 @@ public class Wither extends Module {
     );
 
     private final Setting<Boolean> silentMode = sgGeneral.add(new BoolSetting.Builder()
-        .name("silent")
+        .name("silent-notifications")
         .description("Remove notifications")
         .defaultValue(false)
         .build()

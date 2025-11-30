@@ -124,6 +124,11 @@ public class Wither extends Module {
     private final List<PlacementStep> steps = new ArrayList<>();
     private int currentIndex = 0;
     private boolean prepared = false;
+    private boolean lastWitherKeyDown = false;
+    private boolean lastResetKeyDown = false;
+
+
+
 
     public Wither() {
         super(GriefKit.CATEGORY, "Wither", "Builds a wither in front of you");
@@ -182,10 +187,12 @@ public class Wither extends Module {
     private void onRender(Render3DEvent event) {
         if (mc.world == null) return;
 
-        // Handle wither place bind – only when not already in a run
-        if (witherPlace.get().isPressed() && !prepared) {
+        boolean witherKeyDown = witherPlace.get().isPressed();
+        boolean resetKeyDown = resetBind.get().isPressed();
+
+        if (witherKeyDown && !lastWitherKeyDown && !prepared) {
             steps.clear();
-            currentIndex = 0;              // IMPORTANT: reset index for new run
+            currentIndex = 0;
             preparePatten();
 
             if (steps.isEmpty()) {
@@ -197,13 +204,14 @@ public class Wither extends Module {
             }
         }
 
-        // Reset counter bind
-        if (resetBind.get().isPressed()) {
+        if (resetKeyDown && !lastResetKeyDown) {
             if (!silentMode.get()) info("Reset wither placement counter.");
             resetSuccessfulPlacements();
         }
 
-        // Only draw boxes if render is enabled AND we have a pattern
+        lastWitherKeyDown = witherKeyDown;
+        lastResetKeyDown = resetKeyDown;
+
         if (!render.get() || !prepared) return;
 
         for (int i = 0; i < steps.size(); i++) {

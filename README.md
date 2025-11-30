@@ -22,8 +22,8 @@ It runs on **Fabric 1.21.8**.
 
 ## 📦 **Included Modules**
 1. **Wither (Module)**: Builds a wither in front of you using airplace logic.\
-2. **WitherCounter (HUD)**: A custom HUD element for monitoring wither density. Useful for the Grim anticheat on 2b2t.
-
+2. **WitherCounter (HUD)**: A HUD element for monitoring wither density. Useful for the Grim anticheat on 2b2t.
+3. **Wither Placement Counter (HUD)**: A HUD element that displays how many successful wither placements you have done with Wither.
 ------------------------------------------------------------------------
 
 ## 🧩 **Building from Source**

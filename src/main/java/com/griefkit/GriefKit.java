@@ -1,6 +1,7 @@
 package com.griefkit;
 import com.griefkit.modules.Wither;
 import com.griefkit.hud.WitherCounter;
+import com.griefkit.hud.WitherPlacements;
 import com.mojang.logging.LogUtils;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.addons.GithubRepo;
@@ -31,6 +32,7 @@ public class GriefKit extends MeteorAddon {
         Modules.get().add(new Wither());
         // HUD
         Hud.get().register(WitherCounter.INFO);
+        Hud.get().register(WitherPlacements.INFO);
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.griefkit.GriefKit;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.utils.misc.Keybind;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.item.BlockItem;
@@ -28,6 +29,19 @@ import java.util.List;
 
 
 public class Wither extends Module {
+    private static int successfulPlacements = 0;
+    public static void incrementSuccessfulPlacements() {
+        successfulPlacements++;
+    }
+
+    public static int getSuccessfulPlacements() {
+        return successfulPlacements;
+    }
+
+    public static void resetSuccessfulPlacements() {
+        successfulPlacements = 0;
+    }
+
     private final SettingGroup sgGeneral = this.settings.getDefaultGroup();
 
     private final Setting<Integer> blocksPerTick = sgGeneral.add(new IntSetting.Builder()
@@ -45,6 +59,20 @@ public class Wither extends Module {
         .name("silent-notifications")
         .description("Remove notifications")
         .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<Keybind> witherPlace = sgGeneral.add(new KeybindSetting.Builder()
+        .name("wither-place")
+        .description("Places a wither")
+        .defaultValue(Keybind.none())
+        .build()
+    );
+
+    private final Setting<Keybind> resetBind = sgGeneral.add(new KeybindSetting.Builder()
+        .name("reset-counter")
+        .description("Resets the successful wither placement counter")
+        .defaultValue(Keybind.none())
         .build()
     );
 
@@ -112,17 +140,6 @@ public class Wither extends Module {
             toggle();
             return;
         }
-
-        preparePatten();
-
-        if (steps.isEmpty()) {
-            warning("No valid build position found");
-            toggle();
-            return;
-        }
-
-        prepared = true;
-        if(!silentMode.get()) info("Withering...");
     }
 
     @Override
@@ -138,7 +155,8 @@ public class Wither extends Module {
 
         if (currentIndex >= steps.size()) {
             if(!silentMode.get()) info("Wither done");
-            toggle();
+            Wither.incrementSuccessfulPlacements();
+            prepared = false;
             return;
         }
 
@@ -162,14 +180,35 @@ public class Wither extends Module {
 
     @EventHandler
     private void onRender(Render3DEvent event) {
-        if (!render.get()) return;
-        if (!prepared || mc.world == null) return;
+        if (mc.world == null) return;
 
-        // Render all planned blocks; color them differently if already placed
+        // Handle wither place bind – only when not already in a run
+        if (witherPlace.get().isPressed() && !prepared) {
+            steps.clear();
+            currentIndex = 0;              // IMPORTANT: reset index for new run
+            preparePatten();
+
+            if (steps.isEmpty()) {
+                if (!silentMode.get()) warning("No valid build position found");
+                prepared = false;
+            } else {
+                prepared = true;
+                if (!silentMode.get()) info("Withering...");
+            }
+        }
+
+        // Reset counter bind
+        if (resetBind.get().isPressed()) {
+            if (!silentMode.get()) info("Reset wither placement counter.");
+            resetSuccessfulPlacements();
+        }
+
+        // Only draw boxes if render is enabled AND we have a pattern
+        if (!render.get() || !prepared) return;
+
         for (int i = 0; i < steps.size(); i++) {
             PlacementStep step = steps.get(i);
 
-            // choose colors based on progress
             boolean alreadyPlaced = i < currentIndex
                 || mc.world.getBlockState(step.pos).getBlock() == step.block;
 
@@ -178,6 +217,13 @@ public class Wither extends Module {
 
             event.renderer.box(step.pos, side, line, shapeMode.get(), 0);
         }
+    }
+
+
+
+    private boolean isObstructed(BlockPos pos) {
+        return !mc.world.getBlockState(pos).isAir()
+            && !mc.world.getBlockState(pos).isReplaceable();
     }
 
     private void preparePatten() {
@@ -222,6 +268,22 @@ public class Wither extends Module {
         steps.add(new PlacementStep(headLeft,   Blocks.WITHER_SKELETON_SKULL));
         steps.add(new PlacementStep(headCenter, Blocks.WITHER_SKELETON_SKULL));
         steps.add(new PlacementStep(headRight,  Blocks.WITHER_SKELETON_SKULL));
+
+        List<BlockPos> required = List.of(
+            stem,
+            centerBody,
+            leftArm,
+            rightArm,
+            headLeft,
+            headCenter,
+            headRight
+        );
+
+        for (BlockPos p : required) {
+            if (isObstructed(p)) {
+                steps.clear();
+            }
+        }
 
     }
 

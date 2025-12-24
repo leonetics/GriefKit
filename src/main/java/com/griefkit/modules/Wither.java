@@ -1,30 +1,30 @@
-// leonetics 2025
+// leonetics 2025 evil inc
 
 package com.griefkit.modules;
 
 import com.griefkit.GriefKit;
+import meteordevelopment.meteorclient.events.render.Render3DEvent;
+import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.renderer.ShapeMode;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.utils.misc.Keybind;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.item.BlockItem;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
+import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.BlockItem;
+import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.renderer.ShapeMode;
-import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,8 +48,6 @@ public class Wither extends Module {
 
     private final Setting<Integer> blocksPerTick = sgGeneral.add(new IntSetting.Builder()
         .name("blocks-per-tick")
-        // good for people w shit ping, but 2b is wonky
-        // once you place a block you have 300ms to place 9 blocks, so it shouldn't really matter
         .description("How many blocks to place per tick")
         .defaultValue(4)
         .min(1)
@@ -73,33 +71,33 @@ public class Wither extends Module {
 
     private final Setting<Keybind> resetBind = sgGeneral.add(new KeybindSetting.Builder()
         .name("reset-counter")
-        .description("Resets the successful wither placement counter")
+        .description("Resets the wither placement counter")
         .defaultValue(Keybind.none())
         .build()
     );
 
     private final Setting<Boolean> cursorPlacement = sgGeneral.add(new BoolSetting.Builder()
         .name("cursor-placement")
-        .description("Anchor withers around your crosshair instead of only in front of you.")
+        .description("Anchor withers around your crosshair instead of only in front of you")
         .defaultValue(true)
         .build()
     );
 
     private final Setting<Double> cursorMaxDistance = sgGeneral.add(new DoubleSetting.Builder()
         .name("cursor-max-distance")
-        .description("Maximum distance from you for cursor-based wither placement.")
-        .defaultValue(6.0) // find a good value for this later
+        .description("Maximum distance from you for cursor-based wither placement")
+        .defaultValue(12.0)
         .min(1.0)
-        .max(15.0)
+        .max(64.0)
         .build()
     );
 
     private final Setting<Integer> cursorSearchRadius = sgGeneral.add(new IntSetting.Builder()
         .name("cursor-search-radius")
-        .description("Horizontal search radius around the cursor hit to find a valid wither position.")
+        .description("Horizontal search radius around the cursor hit to find a valid wither position")
         .defaultValue(2)
         .min(0)
-        .max(10)
+        .max(6)
         .build()
     );
 
@@ -107,47 +105,46 @@ public class Wither extends Module {
 
     private final Setting<Boolean> render = sgRender.add(new BoolSetting.Builder()
         .name("render")
-        .description("Render the planned wither structure.")
+        .description("Render the planned wither structure")
         .defaultValue(true)
         .build()
     );
 
     private final Setting<ShapeMode> shapeMode = sgRender.add(new EnumSetting.Builder<ShapeMode>()
         .name("shape-mode")
-        .description("How the boxes are rendered.")
+        .description("How the boxes are rendered")
         .defaultValue(ShapeMode.Both)
         .build()
     );
 
     private final Setting<SettingColor> sideColor = sgRender.add(new ColorSetting.Builder()
         .name("side-color")
-        .description("Color of the box sides for blocks that are not yet placed.")
+        .description("Color of the box sides for blocks that are not yet placed")
         .defaultValue(new SettingColor(255, 50, 50, 25))
         .build()
     );
 
     private final Setting<SettingColor> lineColor = sgRender.add(new ColorSetting.Builder()
         .name("line-color")
-        .description("Outline color for blocks that are not yet placed.")
+        .description("Outline color for blocks that are not yet placed")
         .defaultValue(new SettingColor(255, 50, 50, 255))
         .build()
     );
 
     private final Setting<SettingColor> placedSideColor = sgRender.add(new ColorSetting.Builder()
         .name("placed-side-color")
-        .description("Side color for blocks that are already placed.")
+        .description("Side color for blocks that are already placed")
         .defaultValue(new SettingColor(50, 255, 50, 25))
         .build()
     );
 
     private final Setting<SettingColor> placedLineColor = sgRender.add(new ColorSetting.Builder()
         .name("placed-line-color")
-        .description("Outline color for blocks that are already placed.")
+        .description("Outline color for blocks that are already placed")
         .defaultValue(new SettingColor(50, 255, 50, 255))
         .build()
     );
 
-    // queue of blocks to place
     private final List<PlacementStep> steps = new ArrayList<>();
     private int currentIndex = 0;
     private boolean prepared = false;
@@ -160,7 +157,7 @@ public class Wither extends Module {
     }
 
     public Wither() {
-        super(GriefKit.CATEGORY, "Wither", "Builds a wither in front of you");
+        super(GriefKit.CATEGORY, "Wither", "Builds a wither (cursor placement + preview)");
     }
 
     @Override
@@ -204,10 +201,7 @@ public class Wither extends Module {
                 continue;
             }
 
-            boolean success = placeStepAirplace(step);
-            if (!success) {
-                // just skip failed placements; user can see from render
-            }
+            placeStepAirplace(step);
 
             currentIndex++;
             placedThisTick++;
@@ -221,17 +215,16 @@ public class Wither extends Module {
         boolean witherKeyDown = witherPlace.get().isPressed();
         boolean resetKeyDown = resetBind.get().isPressed();
 
-        // edge-press to actually start a real placement
+        // edge-press to start a real placement
         if (witherKeyDown && !lastWitherKeyDown && !prepared) {
-            // first: inventory sanity check (hotbar only)
+            // hotbar mats check (don’t start if we can’t finish)
             if (!hasRequiredMaterialsInHotbar()) {
-                if (!silentMode.get()) warning("Not enough soul sand / wither skulls in hotbar for a wither.");
-                // don't even prepare a pattern; just bail.
+                if (!silentMode.get()) warning("Not enough soul sand / wither skulls in hotbar");
                 prepared = false;
             } else {
                 steps.clear();
                 currentIndex = 0;
-                preparePatten(); // will respect cursorPlacement setting
+                preparePattern();
 
                 if (steps.isEmpty()) {
                     if (!silentMode.get()) warning("No valid build position found");
@@ -243,9 +236,9 @@ public class Wither extends Module {
             }
         }
 
-        // reset HUD counter
+        // reset counter
         if (resetKeyDown && !lastResetKeyDown) {
-            if (!silentMode.get()) info("Reset wither placement counter.");
+            if (!silentMode.get()) info("Reset wither placement counter");
             resetSuccessfulPlacements();
         }
 
@@ -254,11 +247,11 @@ public class Wither extends Module {
 
         if (!render.get()) return;
 
-        // live preview: if not in a real placement sequence, recompute around cursor
+        // live preview mode: if not actively placing, recompute every frame
         if (!prepared) {
             steps.clear();
             currentIndex = 0;
-            preparePatten();
+            preparePattern();
         }
 
         if (steps.isEmpty()) return;
@@ -267,8 +260,7 @@ public class Wither extends Module {
             PlacementStep step = steps.get(i);
 
             boolean alreadyPlaced = prepared && (
-                i < currentIndex
-                    || mc.world.getBlockState(step.pos).getBlock() == step.block
+                i < currentIndex || mc.world.getBlockState(step.pos).getBlock() == step.block
             );
 
             SettingColor side = alreadyPlaced ? placedSideColor.get() : sideColor.get();
@@ -276,6 +268,25 @@ public class Wither extends Module {
 
             event.renderer.box(step.pos, side, line, shapeMode.get(), 0);
         }
+    }
+
+    private boolean hasRequiredMaterialsInHotbar() {
+        if (mc.player == null) return false;
+
+        PlayerInventory inv = mc.player.getInventory();
+
+        int soulSandCount = 0;
+        int skullCount = 0;
+
+        for (int i = 0; i < 9; i++) {
+            var stack = inv.getStack(i);
+            if (stack.isEmpty()) continue;
+
+            if (stack.getItem() == Blocks.SOUL_SAND.asItem()) soulSandCount += stack.getCount();
+            else if (stack.getItem() == Blocks.WITHER_SKELETON_SKULL.asItem()) skullCount += stack.getCount();
+        }
+
+        return soulSandCount >= 4 && skullCount >= 3;
     }
 
     private boolean isObstructed(BlockPos pos) {
@@ -288,12 +299,12 @@ public class Wither extends Module {
 
         Box box = new Box(pos);
 
-        // check local player
+        // include local player
         if (!mc.player.isSpectator() && mc.player.isAlive() && mc.player.getBoundingBox().intersects(box)) {
             return true;
         }
 
-        // check all other entities
+        // include all other entities
         return !mc.world.getOtherEntities(
             null,
             box,
@@ -303,9 +314,7 @@ public class Wither extends Module {
 
     private boolean anyBlockedOrEntity(List<BlockPos> positions) {
         for (BlockPos p : positions) {
-            if (isObstructed(p) || isEntityIntersecting(p)) {
-                return true;
-            }
+            if (isObstructed(p) || isEntityIntersecting(p)) return true;
         }
         return false;
     }
@@ -320,15 +329,12 @@ public class Wither extends Module {
         BlockPos leftArm = centerBody.offset(left);
         BlockPos rightArm = centerBody.offset(right);
 
-        BlockPos leftBelow = leftArm.down();
-        BlockPos rightBelow = rightArm.down();
-
-        return mc.world.getBlockState(leftBelow).isAir()
-            && mc.world.getBlockState(rightBelow).isAir();
+        return mc.world.getBlockState(leftArm.down()).isAir()
+            && mc.world.getBlockState(rightArm.down()).isAir();
     }
 
-    // generic T-pattern builder in local coordinates.
-    // origin = stem, upDir = "skull direction", rightDir = +X in pattern space.
+    // generic t-pattern builder in local coordinates
+    // origin = stem, upDir = skull direction, rightDir = +right in pattern space
     private List<BlockPos> getPatternPositions(BlockPos origin, Direction upDir, Direction rightDir) {
         BlockPos stem = origin;
         BlockPos centerBody = stem.offset(upDir);
@@ -353,23 +359,19 @@ public class Wither extends Module {
     private List<BlockPos> getVerticalPattern(BlockPos stem, Direction facing) {
         Direction upDir = Direction.UP;
         Direction rightDir = facing.rotateYClockwise();
-
         return getPatternPositions(stem, upDir, rightDir);
     }
 
-    // horizontal wither: skulls "stick out" of the wall (facing), body is vertical.
+    // horizontal wither: skull direction = facing (sticks out), body stays in world up
     private List<BlockPos> getHorizontalPattern(BlockPos stem, Direction facing) {
-        Direction upDir = facing; // skull direction
+        Direction upDir = facing;
         Direction rightDir = facing.rotateYClockwise();
-
         return getPatternPositions(stem, upDir, rightDir);
     }
 
     private boolean validateVerticalPattern(BlockPos stem, Direction facing) {
         List<BlockPos> pattern = getVerticalPattern(stem, facing);
         if (anyBlockedOrEntity(pattern)) return false;
-
-        // arms must have air under them in the vertical case
         return armsHaveAirBelow(stem, facing);
     }
 
@@ -391,13 +393,12 @@ public class Wither extends Module {
         int radius = cursorSearchRadius.get();
         Vec3d hitVec = hit.getPos();
 
-        // range limit from player
         double maxDist = cursorMaxDistance.get();
         double maxDistSq = maxDist * maxDist;
-        Vec3d eyePos = mc.player.getEyePos(); // close enough for range
+        Vec3d eyePos = mc.player.getEyePos();
 
         BlockPos bestStem = null;
-        double bestDistSq = Double.MAX_VALUE;
+        double bestCursorDistSq = Double.MAX_VALUE;
 
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
@@ -408,14 +409,11 @@ public class Wither extends Module {
                 BlockPos centerBody = pattern.get(1);
                 Vec3d centerVec = Vec3d.ofCenter(centerBody);
 
-                // enforce max distance from player
-                double distEyeSq = centerVec.squaredDistanceTo(eyePos);
-                if (distEyeSq > maxDistSq) continue;
+                if (centerVec.squaredDistanceTo(eyePos) > maxDistSq) continue;
 
-                // still pick the one closest to the cursor hit
-                double distCursorSq = centerVec.squaredDistanceTo(hitVec);
-                if (distCursorSq < bestDistSq) {
-                    bestDistSq = distCursorSq;
+                double cursorDistSq = centerVec.squaredDistanceTo(hitVec);
+                if (cursorDistSq < bestCursorDistSq) {
+                    bestCursorDistSq = cursorDistSq;
                     bestStem = candidateStem;
                 }
             }
@@ -442,7 +440,7 @@ public class Wither extends Module {
         Vec3d eyePos = mc.player.getEyePos();
 
         BlockPos bestStem = null;
-        double bestDistSq = Double.MAX_VALUE;
+        double bestCursorDistSq = Double.MAX_VALUE;
 
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
@@ -451,14 +449,11 @@ public class Wither extends Module {
 
                 Vec3d centerVec = Vec3d.ofCenter(candidateStem);
 
-                // enforce max distance from player
-                double distEyeSq = centerVec.squaredDistanceTo(eyePos);
-                if (distEyeSq > maxDistSq) continue;
+                if (centerVec.squaredDistanceTo(eyePos) > maxDistSq) continue;
 
-                // still prefer the one closest to the cursor
-                double distCursorSq = centerVec.squaredDistanceTo(hitVec);
-                if (distCursorSq < bestDistSq) {
-                    bestDistSq = distCursorSq;
+                double cursorDistSq = centerVec.squaredDistanceTo(hitVec);
+                if (cursorDistSq < bestCursorDistSq) {
+                    bestCursorDistSq = cursorDistSq;
                     bestStem = candidateStem;
                 }
             }
@@ -482,19 +477,27 @@ public class Wither extends Module {
         BlockPos headCenter = pattern.get(5);
         BlockPos headRight = pattern.get(6);
 
-        // body (soul sand)
+        // soul sand
         steps.add(new PlacementStep(stemPos, Blocks.SOUL_SAND));
         steps.add(new PlacementStep(centerBody, Blocks.SOUL_SAND));
         steps.add(new PlacementStep(leftArm, Blocks.SOUL_SAND));
         steps.add(new PlacementStep(rightArm, Blocks.SOUL_SAND));
 
-        // skulls
-        steps.add(new PlacementStep(headLeft, Blocks.WITHER_SKELETON_SKULL));
-        steps.add(new PlacementStep(headCenter, Blocks.WITHER_SKELETON_SKULL));
-        steps.add(new PlacementStep(headRight, Blocks.WITHER_SKELETON_SKULL));
+        // skulls (use precomputed support so horizontal can’t “pick the wrong sand”)
+        if (orientation == WitherOrientation.VERTICAL) {
+            // vertical: skulls sit on top of their soul sand
+            steps.add(new PlacementStep(headLeft, Blocks.WITHER_SKELETON_SKULL, leftArm, Direction.UP));
+            steps.add(new PlacementStep(headCenter, Blocks.WITHER_SKELETON_SKULL, centerBody, Direction.UP));
+            steps.add(new PlacementStep(headRight, Blocks.WITHER_SKELETON_SKULL, rightArm, Direction.UP));
+        } else {
+            // horizontal: skulls attach to the side of their soul sand (face points from sand -> skull)
+            steps.add(new PlacementStep(headLeft, Blocks.WITHER_SKELETON_SKULL, leftArm, facing));
+            steps.add(new PlacementStep(headCenter, Blocks.WITHER_SKELETON_SKULL, centerBody, facing));
+            steps.add(new PlacementStep(headRight, Blocks.WITHER_SKELETON_SKULL, rightArm, facing));
+        }
     }
 
-    private void preparePatten() {
+    private void preparePattern() {
         ClientPlayerEntity player = mc.player;
         if (player == null || mc.world == null) return;
 
@@ -503,13 +506,11 @@ public class Wither extends Module {
         BlockPos anchor = null;
         WitherOrientation orientation = WitherOrientation.VERTICAL;
 
-        // cursor-based placement first
+        // cursor-based placement
         if (cursorPlacement.get() && mc.crosshairTarget instanceof BlockHitResult bhr) {
-            // try vertical around cursor
             anchor = findBestVerticalStemPos(bhr, facing);
             orientation = WitherOrientation.VERTICAL;
 
-            // fallback: horizontal around cursor
             if (anchor == null) {
                 anchor = findBestHorizontalStemPos(bhr, facing);
                 orientation = WitherOrientation.HORIZONTAL;
@@ -518,8 +519,7 @@ public class Wither extends Module {
 
         // fallback: fixed offset in front of player
         if (anchor == null) {
-            BlockPos playerPos = player.getBlockPos();
-            BlockPos base = playerPos.offset(facing, 2);
+            BlockPos base = player.getBlockPos().offset(facing, 2);
 
             if (validateVerticalPattern(base, facing)) {
                 anchor = base;
@@ -536,30 +536,6 @@ public class Wither extends Module {
         buildSteps(anchor, facing, orientation);
     }
 
-    private boolean hasRequiredMaterialsInHotbar() {
-        if (mc.player == null) return false;
-
-        PlayerInventory inv = mc.player.getInventory();
-
-        int soulSandCount = 0;
-        int skullCount = 0;
-
-        // Only look in hotbar (0–8)
-        for (int i = 0; i < 9; i++) {
-            var stack = inv.getStack(i);
-            if (stack.isEmpty()) continue;
-
-            if (stack.getItem() == Blocks.SOUL_SAND.asItem()) {
-                soulSandCount += stack.getCount();
-            } else if (stack.getItem() == Blocks.WITHER_SKELETON_SKULL.asItem()) {
-                skullCount += stack.getCount();
-            }
-        }
-
-        // We always need 4 soul sand + 3 skulls for any of our patterns
-        return soulSandCount >= 4 && skullCount >= 3;
-    }
-
     private boolean placeStepAirplace(PlacementStep step) {
         if (mc.player == null || mc.world == null) return false;
 
@@ -567,84 +543,48 @@ public class Wither extends Module {
 
         // choose slot based on block type
         int slot;
-        if (step.block == Blocks.WITHER_SKELETON_SKULL) {
-            slot = getSkullSlot(inv);
-        } else {
-            slot = findSlotWithBlock(inv, step.block);
-        }
+        if (step.block == Blocks.WITHER_SKELETON_SKULL) slot = getSkullSlot(inv);
+        else slot = findSlotWithBlock(inv, step.block);
 
         if (slot == -1) {
-            warning("Missing required block: " + step.block.getName().getString());
+            if (!silentMode.get()) warning("missing required block in hotbar: " + step.block.getName().getString());
             return false;
         }
 
-        // swap hotbar slot, send interaction packets
         if (inv.getSelectedSlot() != slot) {
             inv.setSelectedSlot(slot);
             mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
         }
 
         if (!(mc.player.getMainHandStack().getItem() instanceof BlockItem)) {
-            warning("Main hand does not hold a block item.");
+            if (!silentMode.get()) warning("main hand does not hold a block item");
             return false;
         }
 
-        BlockPos target = step.pos;
+        if (!mc.world.getBlockState(step.pos).isReplaceable()) return false;
 
-        if (!mc.world.getBlockState(target).isReplaceable()) {
-            return false;
-        }
-
-        // determine support block and face for skulls dynamically so vertical + horizontal both work
-        BlockPos supportPos;
-        Direction face;
-
-        if (step.block == Blocks.WITHER_SKELETON_SKULL) {
-            supportPos = null;
-            face = Direction.UP;
-
-            for (Direction dir : Direction.values()) {
-                BlockPos candidateSupport = target.offset(dir.getOpposite());
-                if (mc.world.getBlockState(candidateSupport).getBlock() == Blocks.SOUL_SAND) {
-                    supportPos = candidateSupport;
-                    face = dir;
-                    break;
-                }
-            }
-
-            // fallback: if no supporting soul sand yet (shouldn't happen given our order), just airplace above
-            if (supportPos == null) {
-                supportPos = target.down();
-                face = Direction.UP;
-            }
-        } else {
-            supportPos = target;
-            face = Direction.UP;
-        }
+        BlockPos supportPos = step.supportPos;
+        Direction face = step.supportFace;
 
         Vec3d hitVec = Vec3d.ofCenter(supportPos);
-
-        BlockHitResult bhr = new BlockHitResult(
-            hitVec,
-            face,
-            supportPos,
-            false
-        );
+        BlockHitResult bhr = new BlockHitResult(hitVec, face, supportPos, false);
 
         mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(
-            PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ORIGIN, Direction.DOWN));
+            PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ORIGIN, Direction.DOWN
+        ));
         mc.player.networkHandler.sendPacket(new PlayerInteractBlockC2SPacket(
-            Hand.OFF_HAND, bhr, mc.player.currentScreenHandler.getRevision() + 2));
+            Hand.OFF_HAND, bhr, mc.player.currentScreenHandler.getRevision() + 2
+        ));
         mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(
-            PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ORIGIN, Direction.DOWN));
+            PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ORIGIN, Direction.DOWN
+        ));
 
         mc.player.swingHand(Hand.MAIN_HAND);
         return true;
     }
 
-    // find slot with required block (must be in hotbar because im too lazy for good inventory management)
+    // finds slot with required block in hotbar (0-8)
     private int findSlotWithBlock(PlayerInventory inv, Block block) {
-        // search hotbar only (0–8)
         for (int i = 0; i < 9; i++) {
             if (inv.getStack(i).getItem() == block.asItem()) return i;
         }
@@ -659,13 +599,22 @@ public class Wither extends Module {
     }
 }
 
-// needed for queue, should probably put in a seperate file but im sending this class to people
+// needed for queue; supportPos/supportFace makes skull placement deterministic
 class PlacementStep {
     public final BlockPos pos;
     public final Block block;
 
-    public PlacementStep(BlockPos pos, Block block) {
+    public final BlockPos supportPos;
+    public final Direction supportFace;
+
+    public PlacementStep(BlockPos pos, Block block, BlockPos supportPos, Direction supportFace) {
         this.pos = pos;
         this.block = block;
+        this.supportPos = supportPos;
+        this.supportFace = supportFace;
+    }
+
+    public PlacementStep(BlockPos pos, Block block) {
+        this(pos, block, pos, Direction.UP);
     }
 }

@@ -1,17 +1,14 @@
-# **GriefKit: Meteor Addon for Fabric 1.21.8**
+# **GriefKit: Meteor Addon
 
 GriefKit is an addon for **Meteor Client** that builds withers fast for 2b2t.\
-It runs on **Fabric 1.21.8**.
 
 ------------------------------------------------------------------------
 
 ## 🔧 **Installation**
 
 ### **Prerequisites**
-
--   **Minecraft:** 1.21.8
--   **Fabric Loader:** matching 1.21.8 version
--   **Meteor Client:** latest 1.21.8 build
+-   **Fabric Loader:**
+-   **Meteor Client:**
 -   **Fabric API:** installed in your mods folder
 
 ### **How to Install GriefKit**

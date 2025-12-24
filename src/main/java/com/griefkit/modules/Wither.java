@@ -551,8 +551,8 @@ public class Wither extends Module {
             return false;
         }
 
-        if (inv.getSelectedSlot() != slot) {
-            inv.setSelectedSlot(slot);
+        if (inv.selectedSlot != slot) {
+            inv.selectedSlot = slot;
             mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
         }
 

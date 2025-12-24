@@ -1,6 +1,4 @@
 package com.griefkit;
-import com.griefkit.managers.placement.PlacementManager;
-import com.griefkit.modules.HighwayClogger;
 import com.griefkit.modules.Wither;
 import com.griefkit.hud.WitherCounter;
 import com.griefkit.hud.WitherPlacements;
@@ -33,14 +31,10 @@ public class GriefKit extends MeteorAddon {
 
         // Modules
         Modules.get().add(new Wither());
-        Modules.get().add(new HighwayClogger());
 
         // HUD
         Hud.get().register(WitherCounter.INFO);
         Hud.get().register(WitherPlacements.INFO);
-
-        // Managers (subscribe PlacementManager to event bus)
-        PlacementManager.init();
     }
 
     @Override

@@ -1,6 +1,6 @@
 {
   "required": true,
-  "package": "com.griefkit.mixin",
+  "package": "",
   "compatibilityLevel": "JAVA_21",
   "client": [
   ],

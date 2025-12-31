@@ -1,4 +1,5 @@
 package com.griefkit;
+import com.griefkit.modules.Cross;
 import com.griefkit.modules.Wither;
 import com.griefkit.hud.WitherCounter;
 import com.griefkit.hud.WitherPlacements;
@@ -31,6 +32,7 @@ public class GriefKit extends MeteorAddon {
 
         // Modules
         Modules.get().add(new Wither());
+        Modules.get().add(new Cross());
 
         // HUD
         Hud.get().register(WitherCounter.INFO);
@@ -44,7 +46,6 @@ public class GriefKit extends MeteorAddon {
 
     @Override
     public String getPackage() {
-        // This should match your actual base package, not "com.griefkit.addon"
         return "com.griefkit";
     }
 

@@ -599,22 +599,3 @@ public class Wither extends Module {
     }
 }
 
-// needed for queue; supportPos/supportFace makes skull placement deterministic
-class PlacementStep {
-    public final BlockPos pos;
-    public final Block block;
-
-    public final BlockPos supportPos;
-    public final Direction supportFace;
-
-    public PlacementStep(BlockPos pos, Block block, BlockPos supportPos, Direction supportFace) {
-        this.pos = pos;
-        this.block = block;
-        this.supportPos = supportPos;
-        this.supportFace = supportFace;
-    }
-
-    public PlacementStep(BlockPos pos, Block block) {
-        this(pos, block, pos, Direction.UP);
-    }
-}

@@ -49,9 +49,9 @@ public class Wither extends Module {
     private final Setting<Integer> blocksPerTick = sgGeneral.add(new IntSetting.Builder()
         .name("blocks-per-tick")
         .description("How many blocks to place per tick")
-        .defaultValue(4)
+        .defaultValue(9)
         .min(1)
-        .max(9)
+        .max(12)
         .build()
     );
 
@@ -98,6 +98,13 @@ public class Wither extends Module {
         .defaultValue(2)
         .min(0)
         .max(6)
+        .build()
+    );
+
+    private final Setting<Boolean> elytraMode = sgGeneral.add(new BoolSetting.Builder()
+        .name("elytra-mode")
+        .description("Disables cursor placement and anchors the wither 2 blocks behind you (useful while ebouncing)")
+        .defaultValue(false)
         .build()
     );
 
@@ -505,6 +512,25 @@ public class Wither extends Module {
 
         BlockPos anchor = null;
         WitherOrientation orientation = WitherOrientation.VERTICAL;
+
+        // Elytra mode: override cursor placement; place 2 blocks behind player
+        if (elytraMode.get()) {
+            BlockPos base = player.getBlockPos().offset(facing.getOpposite(), 2);
+
+            if (validateVerticalPattern(base, facing)) {
+                anchor = base;
+                orientation = WitherOrientation.VERTICAL;
+            } else if (validateHorizontalPattern(base, facing)) {
+                anchor = base;
+                orientation = WitherOrientation.HORIZONTAL;
+            } else {
+                steps.clear();
+                return;
+            }
+
+            buildSteps(anchor, facing, orientation);
+            return;
+        }
 
         // cursor-based placement
         if (cursorPlacement.get() && mc.crosshairTarget instanceof BlockHitResult bhr) {

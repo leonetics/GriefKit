@@ -101,6 +101,13 @@ public class Wither extends Module {
         .build()
     );
 
+    private final Setting<Boolean> elytraMode = sgGeneral.add(new BoolSetting.Builder()
+        .name("elytra-mode")
+        .description("Disables cursor placement and anchors the wither 2 blocks behind you (useful while ebouncing)")
+        .defaultValue(false)
+        .build()
+    );
+
     private final SettingGroup sgRender = this.settings.createGroup("Render");
 
     private final Setting<Boolean> render = sgRender.add(new BoolSetting.Builder()
@@ -505,6 +512,25 @@ public class Wither extends Module {
 
         BlockPos anchor = null;
         WitherOrientation orientation = WitherOrientation.VERTICAL;
+
+        // Elytra mode: override cursor placement; place 2 blocks behind player
+        if (elytraMode.get()) {
+            BlockPos base = player.getBlockPos().offset(facing.getOpposite(), 2);
+
+            if (validateVerticalPattern(base, facing)) {
+                anchor = base;
+                orientation = WitherOrientation.VERTICAL;
+            } else if (validateHorizontalPattern(base, facing)) {
+                anchor = base;
+                orientation = WitherOrientation.HORIZONTAL;
+            } else {
+                steps.clear();
+                return;
+            }
+
+            buildSteps(anchor, facing, orientation);
+            return;
+        }
 
         // cursor-based placement
         if (cursorPlacement.get() && mc.crosshairTarget instanceof BlockHitResult bhr) {

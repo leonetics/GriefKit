@@ -3,6 +3,8 @@
 package com.griefkit.modules;
 
 import com.griefkit.GriefKit;
+import com.griefkit.managers.PlacementManager;
+import com.griefkit.placement.PlacementStep;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.renderer.ShapeMode;
 import meteordevelopment.meteorclient.settings.*;
@@ -411,47 +413,22 @@ public class Cross extends Module {
     private boolean placeStepAirplace(PlacementStep step) {
         if (mc.player == null || mc.world == null) return false;
 
-        PlayerInventory inv = mc.player.getInventory();
+        int slot = GriefKit.INVENTORY.findHotbarSlot(
+            mc.player.getInventory(),
+            item -> item == step.block.asItem()
+        );
 
-        int slot = findSlotWithBlock(inv, step.block);
         if (slot == -1) {
             if (!silentMode.get()) warning("missing required block in hotbar: " + step.block.getName().getString());
             return false;
         }
 
-        if (inv.selectedSlot != slot) {
-            inv.selectedSlot = slot;;
-            mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
+        GriefKit.INVENTORY.ensureSelectedSlot(mc.player, slot);
+
+        var res = GriefKit.PLACEMENT.airplaceStep(mc, step);
+        if (!res.value() && !silentMode.get()) {
+            if (res.fail() == PlacementManager.Fail.MAINHAND_NOT_BLOCKITEM) warning("main hand does not hold a block item");
         }
-
-        if (!(mc.player.getMainHandStack().getItem() instanceof BlockItem)) {
-            if (!silentMode.get()) warning("main hand does not hold a block item");
-            return false;
-        }
-
-        if (!mc.world.getBlockState(step.pos).isReplaceable()) return false;
-
-        Vec3d hitVec = Vec3d.ofCenter(step.supportPos);
-        BlockHitResult bhr = new BlockHitResult(hitVec, step.supportFace, step.supportPos, false);
-
-        mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(
-            PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ORIGIN, Direction.DOWN
-        ));
-        mc.player.networkHandler.sendPacket(new PlayerInteractBlockC2SPacket(
-            Hand.OFF_HAND, bhr, mc.player.currentScreenHandler.getRevision() + 2
-        ));
-        mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(
-            PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ORIGIN, Direction.DOWN
-        ));
-
-        mc.player.swingHand(Hand.MAIN_HAND);
-        return true;
-    }
-
-    private int findSlotWithBlock(PlayerInventory inv, Block b) {
-        for (int i = 0; i < 9; i++) {
-            if (inv.getStack(i).getItem() == b.asItem()) return i;
-        }
-        return -1;
+        return res.value();
     }
 }

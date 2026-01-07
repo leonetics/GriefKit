@@ -3,6 +3,8 @@
 package com.griefkit.modules;
 
 import com.griefkit.GriefKit;
+import com.griefkit.managers.PlacementManager;
+import com.griefkit.placement.PlacementStep;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.renderer.ShapeMode;
@@ -49,9 +51,9 @@ public class Wither extends Module {
     private final Setting<Integer> blocksPerTick = sgGeneral.add(new IntSetting.Builder()
         .name("blocks-per-tick")
         .description("How many blocks to place per tick")
-        .defaultValue(4)
+        .defaultValue(9)
         .min(1)
-        .max(9)
+        .max(12)
         .build()
     );
 
@@ -565,48 +567,23 @@ public class Wither extends Module {
     private boolean placeStepAirplace(PlacementStep step) {
         if (mc.player == null || mc.world == null) return false;
 
-        PlayerInventory inv = mc.player.getInventory();
-
-        // choose slot based on block type
-        int slot;
-        if (step.block == Blocks.WITHER_SKELETON_SKULL) slot = getSkullSlot(inv);
-        else slot = findSlotWithBlock(inv, step.block);
+        int slot = GriefKit.INVENTORY.findHotbarSlot(
+            mc.player.getInventory(),
+            item -> item == step.block.asItem() // works for skull too because step.block is WITHER_SKELETON_SKULL for skull steps
+        );
 
         if (slot == -1) {
             if (!silentMode.get()) warning("missing required block in hotbar: " + step.block.getName().getString());
             return false;
         }
 
-        if (inv.selectedSlot != slot) {
-            inv.selectedSlot = slot;
-            mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
+        GriefKit.INVENTORY.ensureSelectedSlot(mc.player, slot);
+
+        var res = GriefKit.PLACEMENT.airplaceStep(mc, step);
+        if (!res.value() && !silentMode.get()) {
+            if (res.fail() == PlacementManager.Fail.MAINHAND_NOT_BLOCKITEM) warning("main hand does not hold a block item");
         }
-
-        if (!(mc.player.getMainHandStack().getItem() instanceof BlockItem)) {
-            if (!silentMode.get()) warning("main hand does not hold a block item");
-            return false;
-        }
-
-        if (!mc.world.getBlockState(step.pos).isReplaceable()) return false;
-
-        BlockPos supportPos = step.supportPos;
-        Direction face = step.supportFace;
-
-        Vec3d hitVec = Vec3d.ofCenter(supportPos);
-        BlockHitResult bhr = new BlockHitResult(hitVec, face, supportPos, false);
-
-        mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(
-            PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ORIGIN, Direction.DOWN
-        ));
-        mc.player.networkHandler.sendPacket(new PlayerInteractBlockC2SPacket(
-            Hand.OFF_HAND, bhr, mc.player.currentScreenHandler.getRevision() + 2
-        ));
-        mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(
-            PlayerActionC2SPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ORIGIN, Direction.DOWN
-        ));
-
-        mc.player.swingHand(Hand.MAIN_HAND);
-        return true;
+        return res.value();
     }
 
     // finds slot with required block in hotbar (0-8)
@@ -624,4 +601,3 @@ public class Wither extends Module {
         return -1;
     }
 }
-

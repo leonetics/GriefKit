@@ -25,7 +25,7 @@ GriefKit is an addon for **Meteor Client** that builds withers fast for 2b2t.\
 
 ## 🧩 **Building from Source**
 
-    git clone https://github.com/yourname/GriefKit
+    git clone https://github.com/leonetic/GriefKit
     cd GriefKit
     ./gradlew build
 

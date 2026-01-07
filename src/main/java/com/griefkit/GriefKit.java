@@ -3,6 +3,8 @@ import com.griefkit.modules.Cross;
 import com.griefkit.modules.Wither;
 import com.griefkit.hud.WitherCounter;
 import com.griefkit.hud.WitherPlacements;
+import com.griefkit.managers.InventoryManager;
+import com.griefkit.managers.PlacementManager;
 import com.mojang.logging.LogUtils;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.addons.GithubRepo;
@@ -18,6 +20,8 @@ public class GriefKit extends MeteorAddon {
     public static final Logger LOG = LogUtils.getLogger();
     public static final Category CATEGORY = new Category("GriefKit");
     public static final HudGroup HUD_GROUP = new HudGroup("GriefKit");
+    public static final InventoryManager INVENTORY = new InventoryManager();
+    public static final PlacementManager PLACEMENT = new PlacementManager();
 
     @Override
     public void onInitialize() {
@@ -51,6 +55,6 @@ public class GriefKit extends MeteorAddon {
 
     @Override
     public GithubRepo getRepo() {
-        return new GithubRepo("Leonetic", "griefkit");
+        return new GithubRepo("leonetics", "griefkit");
     }
 }
